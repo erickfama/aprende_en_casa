@@ -1,0 +1,513 @@
+---
+title: "COVID19_Docentes_report"
+author: "Erick Fajardo"
+date: "24/11/2020"
+output: 
+  word_document:
+    reference_docx: plantilla.docx
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(warning=FALSE, echo = FALSE, fig.width=8, fig.height=6) 
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(readxl)
+library(tidyverse)
+library(knitr)
+library(rlang)
+df <- suppressWarnings(read_xlsx("./COVID19_Docentes_results_text.xlsx", col_names = T))
+encuesta <- read_xlsx("./encuesta.xlsx", col_names = T)
+colors <- c("Mediana" = "red", "Media" = "black")
+```
+
+```{r, echo=FALSE}
+op_one_plot <- function(variable, titulo){
+  v <- sym(variable)
+  
+  prop <- encuesta %>%
+    count(!!v) %>%
+    rename(respuesta = !!v) %>%
+    mutate(prop = (round(n/sum(n), 2)))
+  prop$respuesta <- with(prop, reorder(respuesta, prop))
+  
+  p <- prop %>%
+    ggplot(aes(x = "", y = prop, fill = respuesta)) +
+    geom_bar(stat = "identity", position = "fill", width = 0.3) +
+    scale_y_continuous(labels = scales::percent_format()) + 
+    theme(axis.ticks.x = element_blank()) + 
+    geom_text(data = prop, aes(y = prop, label= scales::percent(prop)),
+              position = position_fill(vjust = 0.5), ) +
+    labs(title = titulo, 
+         subtitle = "n = 3588",
+         x = "",
+         y = "%",
+         fill = "Respuesta")
+  plot(p)
+  kable(arrange(prop, respuesta, -prop))
+}
+
+# Función para graficar respuestas de opción múltiple
+op_mul_plot <- function(p_inicial, p_final, titulo, ocur = F){
+  df <- sapply(c(p_inicial:p_final), function(n){
+    sapply(encuesta[n], function(i){
+      str_replace(i, "\\s*\\([^\\)]+\\)", "")
+    })
+  }) %>%
+    data.frame(.)
+  
+  tables <- sapply(seq(1, length(df)), function(i){
+    table(df[i])
+  }) %>%
+    lapply(as.data.frame)
+  
+  freqs <- tables %>%
+    reduce(full_join,  by = "Var1", suffix = c(".x", ".y")) %>%
+    replace(is.na(.), 0) %>%
+    mutate(Count = rowSums(.[2:length(.)])) %>%
+    rename(Respuesta = Var1) %>%
+    filter(Respuesta != -1) %>%
+    mutate(Prop = round(Count/nrow(encuesta), 2)) %>%
+    select(Respuesta, Count, Prop) 
+  
+  freqs$Respuesta <-  with(freqs, reorder(Respuesta, -Prop))
+  
+  p <- freqs %>%
+    ggplot(aes(x = Respuesta, y = Prop, fill = str_wrap(Respuesta, 20))) + 
+    geom_bar(position = "stack", stat = "identity", show.legend = T) +
+    scale_y_continuous(limits = c(0, 1), labels = scales::percent_format()) +
+    theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(),
+          legend.position = "bottom") +
+    coord_flip() + 
+    geom_text(aes(label = scales::percent(Prop), y = Prop), 
+              position = position_nudge(y = 0.06), 
+              size = 3) +
+    guides(fill = guide_legend(title = "Respuesta", nrow = 2, byrow = T, )) +
+    labs(title = titulo, subtitle = "n = 3588", x = "", y = "%")
+  
+  if(ocur == T){
+    df[df != "-1"] <- 1
+    df[df == "-1"] <- 0
+    df <- sapply(df, as.numeric) %>%
+      data.frame(.) %>%
+      mutate(oc = rowSums(.)) %>%
+      count(oc) %>%
+      mutate(prop = round(n/sum(n), 2))
+    
+    p2 <- df %>% ggplot(aes(x = as.factor(oc), y = prop, fill = as.factor(oc))) +
+      geom_bar(stat = "identity", show.legend = F) + 
+      geom_text(aes(y = prop, label = scales::percent(prop)), size = 3, 
+                position = position_nudge(y = 0.06)) +
+      scale_y_continuous(limits = c(0, 1), labels = scales::percent_format()) +
+      labs(title = "Porcentaje del número de situaciones que presentaron los individuos",
+           y = "%",
+           x = "Número de ocurrencias")
+    
+    gridExtra::grid.arrange(p, p2)
+    kable(arrange(freqs, Respuesta, -Prop))
+  } else{
+  plot(p)
+  kable(arrange(freqs, Respuesta, -Prop))
+  }
+}
+```
+
+# 3
+---
+```{r, echo=FALSE}
+p <- df %>%
+  count(CVDCSINF1) %>%
+  mutate(prop = n/sum(n)) %>%
+  rename(respuesta = CVDCSINF1) %>%
+  ggplot(aes(x = "", y = prop, fill = respuesta)) +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_text(aes(y = sort(prop, decreasing = T), label = scales::percent(prop)), 
+            position = position_fill(vjust = 1.05)) +
+  scale_y_continuous(labels = scales::percent_format()) + 
+  theme(axis.ticks.x = element_blank()) + 
+  labs(title = "Porcentaje de docentes que aceptaron contestar\nla encuesta", 
+         subtitle = "n = 3626",
+         x = "",
+         y = "%",
+         fill = "Respuesta")
+plot(p)
+
+kable(df %>%
+  count(CVDCSINF1) %>%
+  mutate(prop = round(n/sum(n), 2)) %>%
+  rename(respuesta = CVDCSINF1))
+```
+
+# # 5
+
+```{r echo = FALSE}
+p <- ggplot(encuesta, aes(X5_alum_num)) +
+  geom_histogram(binwidth = 5, col = "blue", fill = "white") +
+  geom_vline(aes(xintercept = median(X5_alum_num), col = "Mediana"), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean(X5_alum_num), col = "Media"), linetype = "dashed") +
+  scale_x_continuous(breaks = c(0, round(median(encuesta$X5_alum_num)), 
+       round(mean(encuesta$X5_alum_num)), 60, 100, 150, 200)) +
+  labs(title = "Número de alumnos por docente\nen el ciclo Marzo-Junio 2020",
+       subtitle = paste("Total de alumnos =", sum(encuesta$X5_alum_num), sep = ""),
+       x = "Número de alumnos",
+       y = "Frecuencia",
+       color = "Medidas\nCentrales") +
+  scale_color_manual(values = colors)
+plot(p)
+```
+---
+# 6
+---
+```{r, echo=FALSE}
+op_one_plot("X6_mismo_alum_num", titulo = "Porcentaje de docentes que reportaron la misma cantidad\nde alumnos en el período Marzo-Junio 2020")
+```
+# 7
+---
+```{r, echo=FALSE}
+op_one_plot("X7_mismo_grupo", titulo = "Porcentaje de docentes que reportaron tener el\nmismo grupo que en el ciclo 2020-2021")
+```
+# 8
+---
+```{r, echo=FALSE}
+op_mul_plot(6, 11, titulo = "Recursos disponibles de los docentes\npara impartir clases en línea")
+```
+# 9
+---
+```{r, echo=FALSE}
+op_one_plot("X9_internet_vel", "Velocidad de internet reportada por los docentes")
+```
+# 10
+---
+```{r, echo=FALSE}
+op_mul_plot(13, 18, "Tipos de problemas que enfrentaron los docentes", ocur = T)
+```
+# 11
+---
+```{r, echo=FALSE}
+op_mul_plot(19, 24, "Tipos de problemas que enfrentaron los estudiantes", ocur = T)
+```
+# 12
+---
+```{r}
+op_one_plot("X12_prep_dist", "Percepción de los docentes sobre su preparación para\nimpartir clases a distancia")
+```
+# 13
+---
+```{r}
+op_one_plot("X13_doc_cap", "Porcentaje de docentes que\nrecibieron capacitación")
+```
+# 14
+---
+```{r}
+op_mul_plot(27, 30, "Tipo de capacitación que recibieron los docentes")
+```
+# 15
+---
+```{r}
+op_one_plot("X15_doc_cap_suf", "Percepción de los docentes\nsobre la calidad de la capacitación")
+```
+# 16
+---
+```{r}
+op_mul_plot(32, 38, "Tipo de capacitación que los\ndocentes consideran requerir", ocur = T)
+```
+# 17
+---
+```{r}
+op_mul_plot(39, 46, 'Líneas de acción que reconocen los docentes\nsobre la estrategia "Aprende en Casa"')
+```
+# 18
+---
+```{r}
+op_mul_plot(47, 54, "Líneas de acción que utilizaron los docentes")
+```
+# 19
+---
+```{r}
+op_mul_plot(55, 62, "Líneas de acción que resultaron más funcionales")
+```
+# 20
+---
+```{r}
+op_one_plot("X20_doc_carp", "Porcentaje de docentes que solicitó a los\nalumnos una carpeta de experiencias")
+```
+# 21
+---
+```{r}
+op_mul_plot(64, 70, "Maneras en que los docentes utilizaron\nla carpeta de experiencias")
+```
+# 22
+---
+Nota: La respuesta "-1" significa que el docente no contestó a la pregunta.
+```{r}
+op_one_plot("X22_doc_carp_func", "Percepción de los docentes sobre la\nfuncionalidad de la carpeta de experiencias\npara el nuevo ciclo escolar")
+```
+# 23
+---
+```{r}
+op_one_plot("X23_calif_part_padres", "Percepción de los docentes sobre la\nparticipación de los padres")
+```
+# 24
+---
+```{r}
+op_one_plot("X24_calif_part_aut", "Percepción de los docentes sobre la\nparticipación de las autoridades")
+```
+
+# 25
+---
+```{r}
+encuesta %>%
+  select(c(74:80)) %>%
+  gather("Reactivo", "Percepción") %>%
+  ggplot(aes(x = Reactivo, fill = Percepción)) +
+  geom_bar(position = "fill") +
+  geom_text(data = . %>% 
+              group_by(Reactivo, Percepción) %>%
+              tally() %>%
+              mutate(prop = round(n / sum(n), 2)) %>%
+              ungroup(), aes(y = prop, label = scales::percent(prop)), position = position_fill(vjust = 0.5), size = 3) +
+  scale_y_continuous(breaks = c(0, 1), labels = scales::percent_format()) +
+  scale_x_discrete(labels = c("TV", "Radio", "Temas\nTV", "Temas\nRadio", "Horarios", "Repetición\nTV", "Repetición\nRadio")) + 
+  labs(title = 'Percepción de los docentes sobre los diferentes\naspectos de la estrategia "Aprende en casa"',
+       x = "",
+       y = "%")
+```
+
+# 26
+---
+```{r}
+encuesta %>%
+  select(c(107:109)) %>%
+  gather("Reactivo", "Percepción") %>%
+  ggplot(aes(x = Reactivo, fill = Percepción)) +
+  geom_bar(position = "fill") +
+  geom_text(data = . %>% 
+              group_by(Reactivo, Percepción) %>%
+              tally() %>%
+              mutate(prop = round(n / sum(n), 2)) %>%
+              ungroup(), aes(y = prop, label = scales::percent(prop)), position = position_fill(vjust = 0.5), size = 3) +
+  scale_y_continuous(breaks = c(0, 1), labels = scales::percent_format()) +
+  scale_x_discrete(labels = c("Dudas", "Impartir\nclases", "Acompañamiento\nemocional")) + 
+  labs(title = 'Frecuencia de contacto de los alumnos hacia el docente\nsobre diferentes aspectos',
+       x = "",
+       y = "%")
+```
+
+# 27
+---
+```{r}
+op_one_plot("X27_percep_jornada", "Percepción de los docentes sobre la jornada laboral")
+```
+# 28
+---
+```{r}
+op_one_plot("X28_adap_cont", "Percepción de los docentes sobre la adaptación de los contenidos")
+```
+# 29
+---
+```{r}
+op_mul_plot(84, 94, "Desafíos para la impartición de clases")
+```
+# 30
+---
+```{r}
+op_mul_plot(96, 102, "Recursos que promovieron el aprendizaje según docentes")
+```
+
+# 31
+---
+```{r}
+encuesta %>%
+  ggplot(aes(X31_porc_real_act)) +
+  geom_histogram(bins = 10, color = "blue", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  labs(title = "Porcentaje de estudiantes que realizaron actividades",
+       y = "Frecuencia",
+       x = "% de estudiantes")
+```
+
+# 32
+---
+```{r}
+encuesta %>%
+  ggplot(aes(X32_porc_entr_trab)) +
+  geom_histogram(bins = 10, color = "blue", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  labs(title = "Porcentaje de estudiantes que entregaron trabajos",
+       y = "Frecuencia",
+       x = "% de estudiantes")
+```
+
+# 33
+---
+```{r}
+encuesta %>%
+  ggplot(aes(X33_porc_comun)) +
+  geom_histogram(bins = 10, color = "blue", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  labs(title = "Porcentaje de estudiantes que se comunicaron con el docente",
+       y = "Frecuencia",
+       x = "% de estudiantes")
+```
+---
+# 34
+---
+```{r}
+encuesta %>%
+  select(c(107:109)) %>%
+  gather("Reactivo", "Percepción") %>%
+  ggplot(aes(x = Reactivo, fill = Percepción)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(breaks = c(0, 1), labels = scales::percent_format()) +
+  scale_x_discrete(labels = c("Dudas", "Impartir\nclases", "Acompañamiento\nemocional")) + 
+  labs(title = 'Frecuencia de contacto de los alumnos hacia el docente\nsobre diferentes aspectos',
+       x = "",
+       y = "%")
+```
+---
+# 35
+---
+```{r}
+op_mul_plot(110, 115, "Herramientas que usaron los docentes como medio de contacto")
+```
+# 36
+---
+```{r}
+op_mul_plot(117, 128, "Situaciones que han preocupado más a los docentes", ocur = T)
+
+```
+# 37
+---
+```{r}
+op_mul_plot(129, 128, "Estado de ánimo de los docentes", ocur = T)
+```
+# 38
+---
+```{r}
+op_one_plot("X38_imp_socioemoc", "Percepción de los docentes sobre la importancia\ndel acompañamiento emocional de los alumnos contra el contenido de las asignaturas")
+```
+# 39
+---
+```{r}
+op_one_plot("X39_brind_acopemoc", "Percepción de los docentes sobre el\nacompañamiento emocional que dieron a sus alumnos")
+```
+# 40
+---
+```{r}
+op_one_plot("X40_calif_su", "Autocalificación de los docentes sobre la calidad de sus enseñanzas")
+```
+# 41
+---
+```{r}
+op_one_plot("X41_acuer_aprcasa", 'Aprobación de los docentes sobre la estrategia "Aprende en Casa"')
+```
+# 42
+---
+```{r}
+op_one_plot("X42_efec_aprcasa", 'Efectividad de la estrategia "Aprende en casa" según los docentes')
+```
+# 43
+---
+```{r}
+op_one_plot("X43_porc_logro_apr", "Porcentaje de logro de los estudiantes")
+```
+
+# 44
+---
+```{r}
+encuesta %>%
+  select(c(145:151)) %>%
+  gather("Reactivo", "Percepción") %>%
+  ggplot(aes(x = Reactivo, fill = Percepción)) +
+  geom_bar(position = "fill") +
+  geom_text(data = . %>%
+              group_by(Reactivo, Percepción) %>%
+              tally() %>%
+              mutate(prop = round(n/sum(n), 2)) %>%
+              ungroup(), aes(y = prop, label = scales::percent(prop)), position = position_fill(vjust = 0.5), size = 3) +
+  scale_y_continuous(breaks = c(0, 1), labels = scales::percent_format()) +
+  scale_x_discrete(labels = c("Programas de TV", "Youtube", "Radio", "Distribución\ncuadernillos\ntrabajo", "Sitio de\ninternet", "Educatel", "Correo\nelectrónico")) + 
+  labs(title = 'Frecuencia de contacto de los alumnos hacia el docente\nsobre diferentes aspectos',
+       x = "",
+       y = "%")
+```
+
+# 45
+---
+```{r}
+op_one_plot("X45_princ_estr", "Principal estrategia a seguir que consideran los docentes")
+```
+# 46
+---
+```{r}
+op_one_plot("X46_acuer_clases_dist", "Grado de acuerdo con las clases a distancia")
+```
+# 47
+---
+```{r}
+op_one_plot("X47_eval_apr_dist", "Grado de acuerdo con la evaluación del aprendizaje de los\nalumnos durante el período de educación a distancia")
+```
+# 48
+---
+```{r}
+op_one_plot("X48_ajus_apr_esp", "Se deberían ajustar los aprendizajes esperados?")
+```
+# 49
+---
+```{r}
+op_one_plot("X49_sexo", "Proporción de género")
+```
+
+# 50
+---
+```{r}
+encuesta %>%
+  ggplot(aes(X50_edad)) +
+  geom_histogram(bins = 20, color = "blue", fill = "white") + 
+  labs(title = "Distribución de edad de los docentes",
+       x = "Edad",
+       y = "Frecuencia")
+```
+
+# 51
+---
+```{r}
+op_one_plot("X51_edo_civ", "Estado Civil")
+```
+# 52
+---
+```{r}
+op_one_plot("X52_hijos", "Hijos")
+```
+# 53
+---
+```{r}
+op_one_plot("X53_ult_g_esc", "Último grado de estudios")
+```
+
+# 55
+---
+```{r}
+encuesta %>%
+  ggplot(aes(X55_años_exp)) +
+  geom_histogram(bins = 20, color = "blue", fill = "white") + 
+  labs(title = "Años de experiencia",
+       x = "Años",
+       y = "Frecuencia")
+```
+
+# 56
+---
+```{r}
+op_one_plot("X56_grado_clases", "Grado al que imparten clases")
+```
+
+# 58
+---
+```{r}
+op_one_plot("X58_CCT", "CCT")
+```
+
+
+
+

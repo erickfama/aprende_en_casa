@@ -1,0 +1,117 @@
+---
+title: "COVID19_Docentes_31-35"
+author: "Erick Fajardo"
+date: "24/11/2020"
+output: 
+  word_document:
+    reference_docx: plantilla.docx
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(warning=FALSE, echo = FALSE, fig.width=8, fig.height=6) 
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(readxl)
+library(tidyverse)
+library(knitr)
+library(rlang)
+encuesta <- read_xlsx("./encuesta.xlsx", col_names = T)
+```
+
+# 31
+---
+```{r}
+encuesta %>%
+  ggplot(aes(X31_porc_real_act)) +
+  geom_histogram(bins = 10, color = "blue", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  labs(title = "Porcentaje de estudiantes que realizaron actividades",
+       y = "Frecuencia",
+       x = "% de estudiantes")
+
+kable(as.data.frame(cbind(table(cut(encuesta$X31_porc_real_act, 
+                              breaks= c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100))))) %>%
+  rename(Frecuencias = V1) %>%
+  mutate(Porcentaje.de.alumnos.actividades = c("0 a 10%", "11 a 20%", "21 a 30%", "31 a 40%", "41 a 50%", 
+                                   "51 a 60%", "61 a 70%", "71 a 80%", "81 a 90%", "91 a 100%"),
+         Proporción = round(Frecuencias/sum(Frecuencias), 4)) %>%
+  select(Porcentaje.de.alumnos.actividades, Frecuencias, Proporción))
+```
+
+# 32
+---
+```{r}
+encuesta %>%
+  ggplot(aes(X32_porc_entr_trab)) +
+  geom_histogram(bins = 10, color = "blue", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  labs(title = "Porcentaje de estudiantes que entregaron trabajos",
+       y = "Frecuencia",
+       x = "% de estudiantes")
+
+kable(as.data.frame(cbind(table(cut(encuesta$X32_porc_entr_trab, 
+                              breaks= c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100))))) %>%
+  rename(Frecuencias = V1) %>%
+  mutate(Porcentaje.de.alumnos.trabajos = c("0 a 10%", "11 a 20%", "21 a 30%", "31 a 40%", "41 a 50%", 
+                                   "51 a 60%", "61 a 70%", "71 a 80%", "81 a 90%", "91 a 100%"),
+         Proporción = round(Frecuencias/sum(Frecuencias), 4)) %>%
+  select(Porcentaje.de.alumnos.trabajos, Frecuencias, Proporción))
+```
+
+# 33
+---
+```{r}
+encuesta %>%
+  ggplot(aes(X33_porc_comun)) +
+  geom_histogram(bins = 10, color = "blue", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  labs(title = "Porcentaje de estudiantes que se comunicaron con el docente",
+       y = "Frecuencia",
+       x = "% de estudiantes")
+
+kable(as.data.frame(cbind(table(cut(encuesta$X33_porc_comun, 
+                              breaks= c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100))))) %>%
+  rename(Frecuencias = V1) %>%
+  mutate(Porcentaje.de.alumnos.dudas = c("0 a 10%", "11 a 20%", "21 a 30%", "31 a 40%", "41 a 50%", 
+                                   "51 a 60%", "61 a 70%", "71 a 80%", "81 a 90%", "91 a 100%"),
+         Proporción = round(Frecuencias/sum(Frecuencias), 4)) %>%
+  select(Porcentaje.de.alumnos.dudas, Frecuencias, Proporción))
+```
+---
+# 34
+---
+```{r}
+encuesta %>%
+  select(c(107:109)) %>%
+  gather("Reactivo", "Percepción") %>%
+  ggplot(aes(x = Reactivo, fill = Percepción)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(breaks = c(0, 1), labels = scales::percent_format()) +
+  scale_x_discrete(labels = c("Dudas", "Impartir\nclases", "Acompañamiento\nemocional")) + 
+  labs(title = 'Frecuencia de contacto de los alumnos hacia el docente\nsobre diferentes aspectos',
+       x = "",
+       y = "%")
+
+X34 <- as.data.frame(encuesta %>%
+  select(c(107:109)) %>%
+  gather("Reactivo", "Percepción"))
+opciones <- unique(X34$Percepción)
+reactivos <- unique(X34$Reactivo)
+
+
+X34_frec <- as.data.frame(sapply(reactivos, function(i){
+    reactivo_x <- X34 %>% filter(Reactivo == i)
+      sapply(opciones, function(j){
+        opciones_x <- sum(reactivo_x == j)
+      })
+    })) %>%
+  rename(Dudas = X34_1_freq_cont_dudas,
+         Impartir.clases = X34_2_freq_cont_clases,
+         Acompañamiento.emocional = X34_3_freq_cont_emoc)
+kable(X34_frec)
+
+kable(summarise_all(X34_frec, funs(round(./sum(.), 4))) %>% mutate(Respuesta = c(opciones)) %>% select(4, 1:3))
+
+
+```

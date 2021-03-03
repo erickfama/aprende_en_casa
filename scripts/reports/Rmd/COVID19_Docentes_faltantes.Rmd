@@ -1,0 +1,63 @@
+---
+title: "COVID19_Docentes_faltantes"
+author: "CIDE"
+date: "12/1/2021"
+output:
+    word_document:
+    reference_docx: plantilla.docx
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(message = F, warning = FALSE, echo = FALSE, fig.width=8, fig.height=6) 
+```
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(knitr)
+library(rlang)
+encuesta <- read_xlsx("./encuesta.xlsx", col_names = T)
+```
+# Edad
+```{r}
+rangos <- cut(encuesta$X50_edad, breaks = c(20, 30, 40, 50, 60, 100), right = T)
+
+kable(as.data.frame(cbind(table(rangos))) %>% 
+  rename(Frecuencia = V1) %>% 
+  mutate(Proporción = round(Frecuencia / sum(Frecuencia), 4), 
+         Edad = c("20 a 30", "31 a 40", "41 a 50", "51 a 60", "   > 61")) %>%
+  select(Edad, Frecuencia, Proporción))
+
+cat("Media edad de los docentes: ", round(mean(encuesta$X50_edad)))
+```
+# Experiencia
+```{r}
+rangos <- cut(encuesta$X55_años_exp, breaks = c(0, 5, 10, 20, 30, 40, 100), right = T)
+
+kable(as.data.frame(cbind(table(rangos))) %>%
+  rename(Frecuencia = V1) %>%
+  mutate(Proporción = round(Frecuencia/sum(Frecuencia), 4),
+         "Años de experiencia" = c("0 a  5", "6 a 10", "11 a 20", "21 a 30", "31 a 40", "   > 41")) %>%
+  select("Años de experiencia", Frecuencia, Proporción))
+
+cat("Media años experiencia: ", round(mean(encuesta$X55_años_exp)))
+```
+# Estudiantes por grado
+```{r}
+grados <- as.character(unique(encuesta$X56_grado_clases))
+grados <- sort(paste(c(4, 6, 2, 1, 5, 3), grados, sep = "_")) %>%
+  str_remove("[0-9]_")
+
+alumn_num <- sapply(grados, function(i){
+  alum_num <- encuesta %>% 
+    filter(encuesta$X56_grado_clases == i) %>%
+    select(X5_alum_num) %>%
+    sum() 
+})
+
+kable(as.data.frame(cbind(alumn_num)) %>% 
+  mutate(Proporción = round(alumn_num/sum(alumn_num), 4),
+                                           Grado = grados) %>% 
+  rename("Número de alumnos" = alumn_num) %>% 
+  select(Grado, "Número de alumnos", Proporción))
+```

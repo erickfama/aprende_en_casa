@@ -1,0 +1,333 @@
+---
+title: "COVID19_Docentes_zonas"
+author: "Erick Fajardo"
+date: "1/12/2020"
+output: 
+  word_document:
+    reference_docx: plantilla_horizontal.docx
+---
+```{r, echo=FALSE}
+knitr::opts_chunk$set(message = F, warning = FALSE, echo = FALSE, fig.width=8, fig.height=6) 
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(readxl)
+library(tidyverse)
+library(knitr)
+library(rlang)
+df <- suppressWarnings(read_xlsx("./COVID19_Docentes_results_text.xlsx", col_names = T))
+encuesta <- read_xlsx("./encuesta.xlsx", col_names = T)
+colors <- c("Mediana" = "red", "Media" = "black")
+```
+
+```{r, echo=FALSE}
+op_one_plot <- function(variable, titulo){
+  v <- sym(variable)
+  
+  prop <- encuesta %>%
+    group_by(X58_CCT) %>%
+    count(!!v) %>%
+    rename(respuesta = !!v) %>%
+    mutate(prop = (round(n/sum(n), 2)))
+  prop$respuesta <- with(prop, reorder(respuesta, prop))
+  
+  p <- prop %>%
+    ggplot(aes(x = X58_CCT, y = prop, fill = respuesta)) +
+    geom_bar(stat = "identity", position = "fill", width = 0.3) +
+    scale_y_continuous(labels = scales::percent_format()) + 
+    theme(axis.ticks.x = element_blank(), legend.position = "bottom") + 
+    geom_text(data = prop, aes(y = prop, label= scales::percent(prop, accuracy = 1)),
+              position = position_fill(vjust = 0.5), size = 3) +
+    guides(fill = guide_legend(title = "Respuesta", nrow = 2, byrow = T, )) +
+    coord_flip() +
+    labs(title = titulo, 
+         subtitle = "n = 3588",
+         x = "",
+         y = "%",
+         fill = "Respuesta")
+  plot(p)
+}
+
+# Función para graficar respuestas de opción múltiple
+op_mul_plot <- function(p_inicial, p_final, titulo, ocur = F){
+  df <- sapply(c(p_inicial:p_final), function(n){
+  sapply(encuesta[n], function(i){
+    str_replace(i, "\\s*\\([^\\)]+\\)", "")
+  })
+}) %>%
+  data.frame(.) %>%
+  mutate(CCT = encuesta$X58_CCT) %>%
+  gather(var, respuesta, -CCT) %>%
+  select(CCT, respuesta) %>%
+  filter(respuesta != -1) %>%
+  group_by(CCT, respuesta) %>%
+  summarise(n = n()) %>%
+  mutate(prop = round(n/sum(n),2))
+
+p <- df %>%
+  ggplot(aes(x = CCT, y = prop, fill = str_wrap(respuesta, 20))) +
+  geom_bar(stat = "identity", position = "fill", width = 0.3) +
+  scale_y_continuous(breaks = c(0, 1), labels = scales::percent_format()) + 
+  theme(axis.ticks.x = element_blank(), legend.position = "bottom") + 
+  geom_text(aes(y = prop, label= scales::percent(prop, accuracy = 1)),
+            position = position_fill(vjust = 0.5), size = 3) +
+  coord_flip() +
+  guides(fill = guide_legend(title = "Respuesta", nrow = 2, byrow = T, )) +
+  labs(title = titulo, 
+       subtitle = "n = 3588",
+       x = "",
+       y = "%",
+       fill = "Respuesta")
+plot(p)
+}
+```
+\newpage
+
+
+# 6
+---
+```{r, echo=FALSE}
+op_one_plot("X6_mismo_alum_num", titulo = "Porcentaje de docentes que reportaron la misma cantidad\nde alumnos en el período Marzo-Junio 2020")
+```
+
+# 7
+---
+```{r, echo=FALSE}
+op_one_plot("X7_mismo_grupo", titulo = "Porcentaje de docentes que reportaron tener el\nmismo grupo que en el ciclo 2020-2021")
+```
+
+# 8
+---
+```{r, echo=FALSE}
+op_mul_plot(6, 11, titulo = "Recursos disponibles de los docentes\npara impartir clases en línea")
+```
+
+# 9
+---
+```{r, echo=FALSE}
+op_one_plot("X9_internet_vel", "Velocidad de internet reportada por los docentes")
+```
+
+# 10
+---
+```{r, echo=FALSE}
+op_mul_plot(13, 18, "Tipos de problemas que enfrentaron los docentes", ocur = T)
+```
+
+# 11
+---
+```{r, echo=FALSE}
+op_mul_plot(19, 24, "Tipos de problemas que enfrentaron los estudiantes", ocur = T)
+```
+
+# 12
+---
+```{r}
+op_one_plot("X12_prep_dist", "Percepción de los docentes sobre su preparación para\nimpartir clases a distancia")
+```
+
+# 13
+---
+```{r}
+op_one_plot("X13_doc_cap", "Porcentaje de docentes que\nrecibieron capacitación")
+```
+
+# 14
+---
+```{r}
+op_mul_plot(27, 30, "Tipo de capacitación que recibieron los docentes")
+```
+
+# 15
+---
+```{r}
+op_one_plot("X15_doc_cap_suf", "Percepción de los docentes\nsobre la calidad de la capacitación")
+```
+
+# 16
+---
+```{r}
+op_mul_plot(32, 38, "Tipo de capacitación que los\ndocentes consideran requerir", ocur = T)
+```
+
+# 17
+---
+```{r}
+op_mul_plot(39, 46, 'Líneas de acción que reconocen los docentes\nsobre la estrategia "Aprende en Casa"')
+```
+
+# 18
+---
+```{r}
+op_mul_plot(47, 54, "Líneas de acción que utilizaron los docentes")
+```
+
+# 19
+---
+```{r}
+op_mul_plot(55, 62, "Líneas de acción que resultaron más funcionales")
+```
+
+# 20
+---
+```{r}
+op_one_plot("X20_doc_carp", "Porcentaje de docentes que solicitó a los\nalumnos una carpeta de experiencias")
+```
+
+# 21
+---
+```{r}
+op_mul_plot(64, 70, "Maneras en que los docentes utilizaron\nla carpeta de experiencias")
+```
+
+# 22
+---
+Nota: La respuesta "-1" significa que el docente no contestó a la pregunta.
+```{r}
+op_one_plot("X22_doc_carp_func", "Percepción de los docentes sobre la\nfuncionalidad de la carpeta de experiencias\npara el nuevo ciclo escolar")
+```
+
+# 23
+---
+```{r}
+op_one_plot("X23_calif_part_padres", "Percepción de los docentes sobre la\nparticipación de los padres")
+```
+
+# 24
+---
+```{r}
+op_one_plot("X24_calif_part_aut", "Percepción de los docentes sobre la\nparticipación de las autoridades")
+```
+
+# 27
+---
+```{r}
+op_one_plot("X27_percep_jornada", "Percepción de los docentes sobre la jornada laboral")
+```
+
+# 28
+---
+```{r}
+op_one_plot("X28_adap_cont", "Percepción de los docentes sobre la adaptación de los contenidos")
+```
+
+# 29
+---
+```{r}
+op_mul_plot(84, 94, "Desafíos para la impartición de clases")
+```
+
+# 30
+---
+```{r}
+op_mul_plot(96, 102, "Recursos que promovieron el aprendizaje según docentes")
+```
+
+# 35
+---
+```{r}
+op_mul_plot(110, 115, "Herramientas que usaron los docentes como medio de contacto")
+```
+
+# 36
+---
+```{r}
+op_mul_plot(117, 128, "Situaciones que han preocupado más a los docentes", ocur = T)
+```
+
+# 37
+---
+```{r}
+op_mul_plot(129, 128, "Estado de ánimo de los docentes", ocur = T)
+```
+
+# 38
+---
+```{r}
+op_one_plot("X38_imp_socioemoc", "Percepción de los docentes sobre la importancia\ndel acompañamiento emocional de los alumnos contra el contenido de las asignaturas")
+```
+
+# 39
+---
+```{r}
+op_one_plot("X39_brind_acopemoc", "Percepción de los docentes sobre el\nacompañamiento emocional que dieron a sus alumnos")
+```
+
+# 40
+---
+```{r}
+op_one_plot("X40_calif_su", "Autocalificación de los docentes sobre la calidad de sus enseñanzas")
+```
+
+# 41
+---
+```{r}
+op_one_plot("X41_acuer_aprcasa", 'Aprobación de los docentes sobre la estrategia "Aprende en Casa"')
+```
+
+# 42
+---
+```{r}
+op_one_plot("X42_efec_aprcasa", 'Efectividad de la estrategia "Aprende en casa" según los docentes')
+```
+
+# 43
+---
+```{r}
+op_one_plot("X43_porc_logro_apr", "Porcentaje de logro de los estudiantes")
+```
+
+# 45
+---
+```{r}
+op_one_plot("X45_princ_estr", "Principal estrategia a seguir que consideran los docentes")
+```
+
+# 46
+---
+```{r}
+op_one_plot("X46_acuer_clases_dist", "Grado de acuerdo con las clases a distancia")
+```
+
+# 47
+---
+```{r}
+op_one_plot("X47_eval_apr_dist", "Grado de acuerdo con la evaluación del aprendizaje de los\nalumnos durante el período de educación a distancia")
+```
+
+# 48
+---
+```{r}
+op_one_plot("X48_ajus_apr_esp", "Se deberían ajustar los aprendizajes esperados?")
+```
+
+# 49
+---
+```{r}
+op_one_plot("X49_sexo", "Proporción de género")
+```
+
+# 51
+---
+```{r}
+op_one_plot("X51_edo_civ", "Estado Civil")
+```
+
+# 52
+---
+```{r}
+op_one_plot("X52_hijos", "Hijos")
+```
+
+# 53
+---
+```{r}
+op_one_plot("X53_ult_g_esc", "Último grado de estudios")
+```
+
+# 56
+---
+```{r}
+op_one_plot("X56_grado_clases", "Grado al que imparten clases")
+```
+

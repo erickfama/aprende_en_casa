@@ -1,0 +1,169 @@
+---
+title: "COVID19_Docentes_zonas_tablas"
+author: "Erick Fajardo"
+date: "27/01/2020"
+always_allow_html: true
+output: 
+  word_document:
+    reference_docx: plantilla.docx
+---
+```{r, echo=FALSE}
+knitr::opts_chunk$set(message = F, warning = FALSE, echo = FALSE, fig.width=8, fig.height=6) 
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Cargar librerías y dfs 
+library(readxl)
+library(tidyverse)
+library(flextable)
+library(rlang)
+df <- suppressWarnings(read_xlsx("./COVID19_Docentes_results_text.xlsx", col_names = T)) # encuesta cruda
+encuesta <- read_xlsx("./encuesta.xlsx", col_names = T) # encuesta limpia
+```
+
+```{r, echo=FALSE}
+# Tabla - preguntas de una sola respuesta
+op_one_plot <- function(variable, titulo){
+  v <- sym(variable) 
+  
+  prop <- encuesta %>%
+    group_by(X58_CCT) %>%
+    count(!!v) %>%
+    rename(Respuesta = !!v, Frecuencia = n) %>%
+    mutate(Proporción = (round(Frecuencia/sum(Frecuencia), 4)))
+  prop$respuesta <- with(prop, reorder(Respuesta, Proporción))
+
+  prop %>%
+    regulartable() %>%
+    autofit() %>%
+    set_caption(., titulo) %>%
+    colformat_num(., digits = 4)
+}
+```
+
+```{r, echo = FALSE}
+# Tablas - preguntas de opción múltiple
+op_mul_plot <- function(p_inicial, p_final, titulo){
+  df <- sapply(c(p_inicial:p_final), function(n){
+  sapply(encuesta[n], function(i){
+    str_replace(i, "\\s*\\([^\\)]+\\)", "")
+  })
+}) %>%
+  data.frame(.) %>%
+  mutate(SISAAE = encuesta$X58_CCT) %>%
+  gather(var, Respuesta, -SISAAE) %>%
+  select(SISAAE, Respuesta) %>%
+  filter(Respuesta != -1) %>%
+  group_by(SISAAE, Respuesta) %>%
+  summarise(Frecuencia = n()) %>%
+  mutate(Proporción = round(Frecuencia/sum(Frecuencia), 4))
+
+  df %>%
+    regulartable() %>%
+    autofit() %>%
+    set_caption(., titulo) %>%
+    colformat_num(., digits = 4)
+}
+```
+\newpage
+
+# 8
+---
+```{r, echo=FALSE}
+op_mul_plot(6, 11, titulo = "8. Recursos disponibles para el desarrollo de las clases")
+```
+
+# 10
+---
+```{r, echo=FALSE}
+op_mul_plot(13, 18, titulo = "10. Problemas que enfrentaron los docentes con mayor frecuencia")
+```
+
+# 14
+---
+```{r}
+op_mul_plot(27, 30, "14. Tipo de capacitación que recibieron los docentes")
+```
+
+# 16
+---
+```{r}
+op_mul_plot(32, 38, "16. Tipo de capacitación que los docentes consideran requerir")
+```
+
+# 18
+---
+```{r}
+op_mul_plot(47, 54, "18. Líneas de acción que utilizaron los docentes")
+```
+
+# 19
+---
+```{r}
+op_mul_plot(55, 62, "19. Líneas de acción que resultaron más funcionales")
+```
+
+# 20
+---
+```{r}
+op_one_plot("X20_doc_carp", "20. Porcentaje de docentes que solicitó a los alumnos una carpeta de experiencias")
+```
+
+# 21
+---
+```{r}
+op_mul_plot(64, 70, "21. Maneras en que los docentes utilizaron la carpeta de experiencias")
+```
+
+# 30
+---
+```{r}
+op_mul_plot(96, 102, "30. Recursos que promovieron el aprendizaje según docentes")
+```
+
+# 35
+---
+```{r}
+op_mul_plot(110, 115, "35. Herramientas que usaron los docentes como medio de contacto")
+```
+
+# 36
+---
+```{r}
+op_mul_plot(117, 128, "36. Situaciones que han preocupado más a los docentes")
+```
+
+# 40
+---
+```{r}
+op_one_plot("X40_calif_su", "40. Autocalificación de los docentes sobre la calidad de sus enseñanzas")
+```
+
+# 44
+---
+```{r}
+X44 <- encuesta %>%
+  select(c(145:151, 167)) %>%
+  gather("Reactivo", "Respuesta")
+reactivo <- unique(X44$Reactivo)
+respuesta <- unique(X44$Respuesta) %>% sort(.)
+
+X44_frec <- as.data.frame(sapply(reactivo, function(i){
+  reactivo_x <- X44 %>% filter(Reactivo == i)
+  sapply(respuesta, function(j){
+    opciones_x <- sum(reactivo_x == j)
+  })
+})) %>%
+  rename(Acc.TV = 1, Acc.Youtube = 2, Acc.Radio = 3,
+         Acc.cuad.trabajo = 4, Acc.sitio.intrnt = 5,
+         Acc.educatel = 6, Acc.corr.elect = 7)
+kable(X44_frec)
+
+kable(summarise_all(X44_frec, funs(round(./sum(.), 4))) %>% mutate(Respuesta = c(respuesta)) %>% select(8, 1:7))
+```
+
+# 47
+---
+```{r}
+op_one_plot("X47_eval_apr_dist", "47. Grado de acuerdo con la evaluación del aprendizaje de los alumnos durante el período de educación a distancia")
+```
